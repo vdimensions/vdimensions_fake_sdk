@@ -14,6 +14,8 @@ module VDBuild =
 
     let paketVersion = "5.207.3"
 
+    let pwd = Shell.pwd()
+
     let runTestsOnBuild = false
 
     let createParams (data : list<string*string>) =
@@ -33,9 +35,9 @@ module VDBuild =
         let value = int(System.DateTime.UtcNow.TimeOfDay.TotalSeconds / 2.0).ToString()
         ("VersionRevision", value)
 
-    let customDotnetdParams = 
+    let customDotnetdParams propsFilePath = 
         (fun () ->
-            let propsFile = (sprintf "%s/Axle.Common.props" (Shell.pwd()))
+            let propsFile = (sprintf "%s/%s" pwd propsFilePath)
             let mutable p = [
                 getVersionBuild propsFile
                 getVersionRevision ()
@@ -90,11 +92,11 @@ module VDBuild =
     //let inline build arg =
     //    DotNet.exec dotnet "build" arg
 
-    let dotnet_options = 
+    let dotnet_options propsFilePath = 
         (fun (op : DotNet.Options) -> 
             { op with 
                 Verbosity = Some DotNet.Verbosity.Quiet
-                CustomParams = Some customDotnetdParams
+                CustomParams = Some (customDotnetdParams propsFilePath)
             })
 
     let build op =
@@ -110,7 +112,7 @@ module VDBuild =
         | _ ->
             invalidOp "Multiple project files are not supported by this script. Please, make sure you have a single msbuild file in the directory of the given project."
 
-    let createDynamicTarget location =
+    let createDynamicTarget propsFilePath location =
         let targetName = location
         Target.create targetName (fun _ ->
             let codeDir = sprintf "%s/src" location
@@ -123,10 +125,10 @@ module VDBuild =
                     clean ()
                     //paket 3 paketVersion ["install"; "--only-referenced"] |> ignore
                     paket 3 paketVersion ["update"] |> ignore
-                    dotnet_clean dotnet_options "" |> ignore
-                    dotnet_restore dotnet_options "" |> ignore
-                    build dotnet_options
-                    dotnet_pack dotnet_options "" |> ignore
+                    dotnet_clean (dotnet_options propsFilePath) "" |> ignore
+                    dotnet_restore (dotnet_options propsFilePath) "" |> ignore
+                    build (dotnet_options propsFilePath)
+                    dotnet_pack (dotnet_options propsFilePath) "" |> ignore
                     ()
                 finally 
                     Shell.popd()
@@ -140,10 +142,10 @@ module VDBuild =
                     clean ()
                     //paket 3 paketVersion ["install"; "--only-referenced"] |> ignore
                     paket 3 paketVersion ["update"] |> ignore
-                    dotnet_clean dotnet_options "" |> ignore
-                    dotnet_restore dotnet_options "" |> ignore
-                    dotnet_build dotnet_options "" |> ignore
-                    if runTestsOnBuild then dotnet_test dotnet_options "" |> ignore
+                    dotnet_clean (dotnet_options propsFilePath) "" |> ignore
+                    dotnet_restore (dotnet_options propsFilePath) "" |> ignore
+                    dotnet_build (dotnet_options propsFilePath) "" |> ignore
+                    if runTestsOnBuild then dotnet_test (dotnet_options propsFilePath) "" |> ignore
                 finally 
                     Shell.popd()
             else 
