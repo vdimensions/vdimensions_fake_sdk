@@ -130,6 +130,8 @@ module VDBuild =
                     dotnet_pack (dotnet_options) "" |> ignore
                     ()
                 finally 
+                    let paketdir = sprintf "%s/.paket" dir
+                    Shell.rm_rf paketdir
                     Shell.popd()
             else ()
 
@@ -146,6 +148,8 @@ module VDBuild =
                     dotnet_build (dotnet_options) "" |> ignore
                     if runTestsOnBuild then dotnet_test (dotnet_options) "" |> ignore
                 finally 
+                    let paketdir = sprintf "%s/.paket" dir
+                    Shell.rm_rf paketdir
                     Shell.popd()
             else 
                 Trace.traceImportantfn "Project '%s' does not have tests" location
