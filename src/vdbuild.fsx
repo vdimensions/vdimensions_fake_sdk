@@ -32,7 +32,8 @@ module VDBuild =
         let timeOfDay = now.TimeOfDay
         let major = Xml.read true propsFile "" "" "Project/PropertyGroup/VersionMajor" |> Seq.map System.Int32.Parse |> Seq.head
         let minor = Xml.read true propsFile "" "" "Project/PropertyGroup/VersionMinor" |> Seq.map System.Int32.Parse |> Seq.head
-        let build = int((now - backThen).TotalDays)
+        let dateDiff = (now - backThen)
+        let build = int(dateDiff.TotalDays)
         let revision = int(timeOfDay.TotalSeconds / 2.0)
         System.Version(major, minor, build, revision)
 
