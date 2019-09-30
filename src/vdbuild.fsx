@@ -25,15 +25,16 @@ module VDBuild =
             |> List.fold (fun (sb : System.Text.StringBuilder) (k, v) -> sb.AppendFormat(propertyFormat, k, v)) (System.Text.StringBuilder())
         sb.ToString()
 
-    let getVersionBuild propsFile =
+    let getVersion propsFile =
         let yearSince = Xml.read true propsFile "" "" "Project/PropertyGroup/CopyrightYearSince" |> Seq.map System.Int32.Parse |> Seq.head
         let now = System.DateTime.UtcNow
         let backThen = System.DateTime(yearSince, 1, 1)
-        ("VersionBuild", int((now - backThen).TotalDays).ToString())
+        let major = Xml.read true propsFile "" "" "Project/PropertyGroup/VersionMajor" |> Seq.map System.Int32.Parse |> Seq.head
+        let minor = Xml.read true propsFile "" "" "Project/PropertyGroup/VersionMinor" |> Seq.map System.Int32.Parse |> Seq.head
+        let build = int((now - backThen).TotalDays)
+        let revision = int(System.DateTime.UtcNow.TimeOfDay.TotalSeconds / 2.0)
+        System.Version(major, minor, build, revision)
 
-    let getVersionRevision () =
-        let value = int(System.DateTime.UtcNow.TimeOfDay.TotalSeconds / 2.0).ToString()
-        ("VersionRevision", value)
 
     let dir_exists = DirectoryInfo.ofPath >> DirectoryInfo.exists
     let rootDir = (Shell.pwd());
@@ -81,12 +82,12 @@ module VDBuild =
     //let inline build arg =
     //    DotNet.exec dotnet "build" arg
 
-    let build op =
+    let build op args =
         let dir = Shell.pwd()
         match !!(sprintf "%s/*.fsproj" dir) |> List.ofSeq with
         | [] | [_] -> 
             Trace.tracefn "Performing dotnet build for default project in dir '%s'" dir
-            dotnet_build op "" |> ignore
+            dotnet_build op args |> ignore
         //| [singleFsProj] ->
         //    Trace.tracefn "Performing msbuild Build for %s in %s" singleFsProj dir
         //    // this is an F# project. dotnet build fails to produce valid metadata in the dll, we should use MSBuild instead (but not dotnet msbuild).
@@ -95,15 +96,18 @@ module VDBuild =
             invalidOp "Multiple project files are not supported by this script. Please, make sure you have a single msbuild file in the directory of the given project."
 
     let createDynamicTarget propsFilePath location =
+        let propsFile = (sprintf "%s/%s" pwd propsFilePath)
+        let version = getVersion propsFile
+        Trace.traceImportantfn "Project Version is '%s'" (version.ToString())
+        
         let customDotnetdParams = 
-            (fun (pfp) ->
-                let propsFile = (sprintf "%s/%s" pwd pfp)
+            (fun () ->
                 let mutable p = [
-                    getVersionBuild propsFile
-                    getVersionRevision ()
+                    ("VersionBuild", version.Build.ToString())
+                    ("VersionRevision", version.Revision.ToString())
                 ] 
                 createParams p
-            )(propsFilePath)
+            )()
 
         let dotnet_options = 
             (fun (op : DotNet.Options) -> 
@@ -116,18 +120,22 @@ module VDBuild =
         Target.create targetName (fun _ ->
             let codeDir = sprintf "%s/src" location
             let testsDir = sprintf "%s/tests" location
+            let mutable projectFileName = ""
             if (dir_exists codeDir) then
                 Shell.pushd (codeDir)
                 let dir = Shell.pwd()
                 try
                     Trace.tracefn "Project to build %s" dir
+                    projectFileName <- System.IO.Path.GetFileNameWithoutExtension((System.IO.DirectoryInfo(dir).GetFiles("*.??proj") |> Array.head).FullName)
                     clean ()
-                    //paket 3 paketVersion ["install"; "--only-referenced"] |> ignore
                     paket 3 paketVersion ["update"] |> ignore
                     dotnet_clean (dotnet_options) "" |> ignore
                     dotnet_restore (dotnet_options) "" |> ignore
-                    build (dotnet_options)
+                    build (dotnet_options) "--no-restore"
                     dotnet_pack (dotnet_options) "" |> ignore
+                    Command.RawCommand("nuget", Arguments.OfArgs ["add"; sprintf "../../../../dist/%s.%s.nupkg" projectFileName (version.ToString()); "-Source"; "../../../../dist/restore"]) 
+                    |> Common.runRetry 1
+                    |> ignore
                     ()
                 finally 
                     let paketdir = sprintf "%s/.paket" dir
@@ -144,8 +152,9 @@ module VDBuild =
                     //paket 3 paketVersion ["install"; "--only-referenced"] |> ignore
                     paket 3 paketVersion ["update"] |> ignore
                     dotnet_clean (dotnet_options) "" |> ignore
+                    //dotnet_restore (dotnet_options) "-s ../../../../dist/restore" |> ignore
                     dotnet_restore (dotnet_options) "" |> ignore
-                    dotnet_build (dotnet_options) "" |> ignore
+                    dotnet_build (dotnet_options) "--no-restore" |> ignore
                     if runTestsOnBuild then dotnet_test (dotnet_options) "" |> ignore
                 finally 
                     let paketdir = sprintf "%s/.paket" dir
