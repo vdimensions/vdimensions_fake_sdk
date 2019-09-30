@@ -57,11 +57,11 @@ module VDBuild =
         |> ignore
 
     let clean () =
-        let objPath = Path.combine (Shell.pwd()) "obj"
+        //let objPath = Path.combine (Shell.pwd()) "obj"
         let paketFiles = Path.combine (Shell.pwd()) "pake-files"
-        Shell.rm_rf objPath
+        //Shell.rm_rf objPath
         Shell.rm_rf paketFiles
-        Shell.mkdir objPath
+        //Shell.mkdir objPath
 
     let cleanNupkg = (fun _ -> nupkg_map (fun nupkg -> Trace.tracefn "NUPK CLEAN: %s" nupkg; Shell.rm_rf nupkg) |> ignore)
 
@@ -133,8 +133,8 @@ module VDBuild =
                     clean ()
                     paket 3 paketVersion ["update"] |> ignore
                     dotnet_clean (dotnet_options) "" |> ignore
-                    dotnet_restore (dotnet_options) "" |> ignore
-                    build (dotnet_options) "--no-restore"
+                    //dotnet_restore (dotnet_options) "" |> ignore
+                    build (dotnet_options) ""
                     dotnet_pack (dotnet_options) "" |> ignore
                     Command.RawCommand("nuget", Arguments.OfArgs ["add"; sprintf "../../../../dist/%s.%s.nupkg" projectFileName (version.ToString()); "-Source"; "../../../../dist/restore"]) 
                     |> Common.runRetry 1
@@ -152,12 +152,10 @@ module VDBuild =
                 try
                     Trace.tracefn "Test project to build %s" dir
                     clean ()
-                    //paket 3 paketVersion ["install"; "--only-referenced"] |> ignore
                     paket 3 paketVersion ["update"] |> ignore
                     dotnet_clean (dotnet_options) "" |> ignore
-                    //dotnet_restore (dotnet_options) "-s ../../../../dist/restore" |> ignore
-                    dotnet_restore (dotnet_options) "" |> ignore
-                    dotnet_build (dotnet_options) "--no-restore" |> ignore
+                    //dotnet_restore (dotnet_options) "" |> ignore
+                    dotnet_build (dotnet_options) "" |> ignore
                     if runTestsOnBuild then dotnet_test (dotnet_options) "" |> ignore
                 finally 
                     let paketdir = sprintf "%s/.paket" dir
