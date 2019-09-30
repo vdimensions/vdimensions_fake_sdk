@@ -29,10 +29,11 @@ module VDBuild =
         let yearSince = Xml.read true propsFile "" "" "Project/PropertyGroup/CopyrightYearSince" |> Seq.map System.Int32.Parse |> Seq.head
         let now = System.DateTime.UtcNow
         let backThen = System.DateTime(yearSince, 1, 1)
+        let timeOfDay = now.TimeOfDay
         let major = Xml.read true propsFile "" "" "Project/PropertyGroup/VersionMajor" |> Seq.map System.Int32.Parse |> Seq.head
         let minor = Xml.read true propsFile "" "" "Project/PropertyGroup/VersionMinor" |> Seq.map System.Int32.Parse |> Seq.head
         let build = int((now - backThen).TotalDays)
-        let revision = int(System.DateTime.UtcNow.TimeOfDay.TotalSeconds / 2.0)
+        let revision = int(timeOfDay.TotalSeconds / 2.0)
         System.Version(major, minor, build, revision)
 
 
@@ -102,9 +103,11 @@ module VDBuild =
         
         let customDotnetdParams = 
             (fun () ->
+                let b = version.Build
+                let r = version.Revision
                 let mutable p = [
-                    ("VersionBuild", version.Build.ToString())
-                    ("VersionRevision", version.Revision.ToString())
+                    ("VersionBuild", b.ToString())
+                    ("VersionRevision", r.ToString())
                 ] 
                 createParams p
             )()
