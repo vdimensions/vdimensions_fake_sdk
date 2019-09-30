@@ -22,6 +22,7 @@ module Paket =
                 while (paketDir |> (Shell.testDir >> not)) do
                     Shell.cd "..\\";
                     paketDir <- Path.combine (Shell.pwd()) ".paket" 
+                    Trace.traceImportantfn "Looking for paket '%s'" paketDir
             finally
                 Shell.cd currentDir
                 
