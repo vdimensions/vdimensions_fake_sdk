@@ -84,18 +84,18 @@ module VDBuild =
     //let inline build arg =
     //    DotNet.exec dotnet "build" arg
 
-    let build op args =
-        let dir = Shell.pwd()
-        match !!(sprintf "%s/*.fsproj" dir) |> List.ofSeq with
-        | [] | [_] -> 
-            Trace.tracefn "Performing dotnet build for default project in dir '%s'" dir
-            dotnet_build op args |> ignore
-        //| [singleFsProj] ->
-        //    Trace.tracefn "Performing msbuild Build for %s in %s" singleFsProj dir
-        //    // this is an F# project. dotnet build fails to produce valid metadata in the dll, we should use MSBuild instead (but not dotnet msbuild).
-        //    msbuild "Build" singleFsProj
-        | _ ->
-            invalidOp "Multiple project files are not supported by this script. Please, make sure you have a single msbuild file in the directory of the given project."
+    //let build op args =
+    //    let dir = Shell.pwd()
+    //    match !!(sprintf "%s/*.fsproj" dir) |> List.ofSeq with
+    //    | [] | [_] -> 
+    //        Trace.tracefn "Performing dotnet build for default project in dir '%s'" dir
+    //        dotnet_build op args |> ignore
+    //    //| [singleFsProj] ->
+    //    //    Trace.tracefn "Performing msbuild Build for %s in %s" singleFsProj dir
+    //    //    // this is an F# project. dotnet build fails to produce valid metadata in the dll, we should use MSBuild instead (but not dotnet msbuild).
+    //    //    msbuild "Build" singleFsProj
+    //    | _ ->
+    //        invalidOp "Multiple project files are not supported by this script. Please, make sure you have a single msbuild file in the directory of the given project."
 
     let createDynamicTarget propsFilePath location =
         let propsFile = (sprintf "%s/%s" pwd propsFilePath)
@@ -134,13 +134,13 @@ module VDBuild =
                     clean ()
                     paket 3 paketVersion ["update"] |> ignore
                     dotnet_clean (dotnet_options) "" |> ignore
-                    //dotnet_restore (dotnet_options) "" |> ignore
-                    build (dotnet_options) ""
-                    dotnet_pack (dotnet_options) "" |> ignore
-                    Command.RawCommand("nuget", Arguments.OfArgs ["add"; sprintf "../../../../dist/%s.%s.nupkg" projectFileName (version.ToString()); "-Source"; "../../../../dist/restore"]) 
-                    |> Common.runRetry 1
-                    |> ignore
-                    ()
+                    dotnet_restore (dotnet_options) "" |> ignore
+                    dotnet_build (dotnet_options) "--no-restore" |> ignore
+                    dotnet_pack (dotnet_options) "--no-build --no-restore" |> ignore
+                    //Command.RawCommand("nuget", Arguments.OfArgs ["add"; sprintf "../../../../dist/%s.%s.nupkg" projectFileName (version.ToString()); "-Source"; "../../../../dist/restore"]) 
+                    //|> Common.runRetry 1
+                    //|> ignore
+                    //()
                 finally 
                     let paketdir = sprintf "%s/.paket" dir
                     Shell.rm_rf paketdir
@@ -155,8 +155,8 @@ module VDBuild =
                     clean ()
                     paket 3 paketVersion ["update"] |> ignore
                     dotnet_clean (dotnet_options) "" |> ignore
-                    //dotnet_restore (dotnet_options) "" |> ignore
-                    dotnet_build (dotnet_options) "" |> ignore
+                    dotnet_restore (dotnet_options) "" |> ignore
+                    dotnet_build (dotnet_options) "--no-restore" |> ignore
                     if runTestsOnBuild then dotnet_test (dotnet_options) "" |> ignore
                 finally 
                     let paketdir = sprintf "%s/.paket" dir
